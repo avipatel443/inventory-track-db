@@ -1,3 +1,4 @@
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
@@ -20,7 +21,16 @@ app.use("/api/products", productRoutes);
 app.use("/api/movements", movementRoutes);
 app.use("/api/reports", reportRoutes);
 
-// 404 handler
+if (process.env.NODE_ENV === "production") {
+  const staticPath = path.join(__dirname, "../frontend/dist");
+  app.use(express.static(staticPath));
+
+  app.get(/^(?!\/api).*/, (req, res) => {
+    res.sendFile(path.join(staticPath, "index.html"));
+  });
+}
+
+// 404 handler for API routes and missing assets
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
 });

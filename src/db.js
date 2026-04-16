@@ -7,17 +7,37 @@ let mockUsers = [];
 let mockProducts = [];
 let mockMovements = [];
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  ssl: { rejectUnauthorized: false } // Aiven MySQL
-});
+function getDbConfig() {
+  if (process.env.DB_URI) {
+    const dbUrl = new URL(process.env.DB_URI);
+    const sslMode = dbUrl.searchParams.get("ssl-mode");
+    return {
+      host: dbUrl.hostname,
+      port: Number(dbUrl.port),
+      user: decodeURIComponent(dbUrl.username),
+      password: decodeURIComponent(dbUrl.password),
+      database: dbUrl.pathname.replace(/^\//, ""),
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0,
+      ssl: sslMode === "REQUIRED" ? { rejectUnauthorized: false } : undefined,
+    };
+  }
+
+  return {
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT),
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    ssl: { rejectUnauthorized: false }, // Aiven MySQL
+  };
+}
+
+const pool = mysql.createPool(getDbConfig());
 
 // Add this function
 async function initDb() {
@@ -105,7 +125,5 @@ async function mockQuery(sql, params = []) {
 
   return [[]];
 }
-
-pool.query = mockQuery;
 
 module.exports = { pool, initDb, getPool, useMockDb };
