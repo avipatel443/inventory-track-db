@@ -1,9 +1,16 @@
 services:
-  - type: web_service
+  - type: web
+    runtime: node
     name: inventory-track-api
-    env: node
-    branch: main
-    buildCommand: "npm run build:frontend"
+    buildCommand: "npm install && npm run build:frontend"
     startCommand: "npm start"
-    env:
-      NODE_ENV: production
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 2h
