@@ -7,7 +7,7 @@ const { authRequired } = require("../middleware/auth");
 const router = express.Router();
 
 function signToken(user) {
-  const secret = process.env.JWT_SECRET || 'fallback_secret_for_development';
+  const secret = process.env.JWT_SECRET || "fallback_secret_for_development";
   return jwt.sign(
     { id: user.id, role: user.role, email: user.email, name: user.name },
     secret,
@@ -19,27 +19,24 @@ function signToken(user) {
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
-
     if (!name || !email || !password) {
       return res.status(400).json({ message: "name, email, password are required" });
     }
 
     const pool = getPool();
-
-    const [existing] = await pool.query("SELECT id FROM users WHERE email = ?", [email]);
-    if (existing.length) return res.status(409).json({ message: "Email already registered" });
+    const existing = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+    if (existing.rows.length) return res.status(409).json({ message: "Email already registered" });
 
     const password_hash = await bcrypt.hash(password, 10);
     const safeRole = role === "admin" ? "admin" : "staff";
 
-    const [result] = await pool.query(
-      "INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)",
+    const result = await pool.query(
+      "INSERT INTO users (name, email, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id",
       [name, email, password_hash, safeRole]
     );
 
-    const user = { id: result.insertId, name, email, role: safeRole };
+    const user = { id: result.rows[0].id, name, email, role: safeRole };
     const token = signToken(user);
-
     return res.status(201).json({ token, user });
   } catch (err) {
     return res.status(500).json({ message: "Server error", error: err.message });
@@ -53,10 +50,13 @@ router.post("/login", async (req, res) => {
     if (!email || !password) return res.status(400).json({ message: "email and password are required" });
 
     const pool = getPool();
-    const [rows] = await pool.query("SELECT id, name, email, password_hash, role FROM users WHERE email = ?", [email]);
-    if (!rows.length) return res.status(401).json({ message: "Invalid credentials" });
+    const result = await pool.query(
+      "SELECT id, name, email, password_hash, role FROM users WHERE email = $1",
+      [email]
+    );
+    if (!result.rows.length) return res.status(401).json({ message: "Invalid credentials" });
 
-    const user = rows[0];
+    const user = result.rows[0];
     const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok) return res.status(401).json({ message: "Invalid credentials" });
 

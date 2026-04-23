@@ -14,20 +14,22 @@ router.get("/", authRequired, async (req, res) => {
 
     let sql = "SELECT * FROM products WHERE 1=1";
     const params = [];
+    let idx = 1;
 
     if (active !== undefined) {
-      sql += " AND is_active = ?";
-      params.push(active === "true" ? 1 : 0);
+      sql += ` AND is_active = $${idx++}`;
+      params.push(active === "true");
     }
 
     if (q) {
-      sql += " AND (name LIKE ? OR sku LIKE ?)";
+      sql += ` AND (name ILIKE $${idx} OR sku ILIKE $${idx + 1})`;
       params.push(`%${q}%`, `%${q}%`);
+      idx += 2;
     }
 
     sql += " ORDER BY created_at DESC";
-    const [rows] = await pool.query(sql, params);
-    return res.json(rows);
+    const result = await pool.query(sql, params);
+    return res.json(result.rows);
   } catch (err) {
     return res.status(500).json({ message: "Server error", error: err.message });
   }
@@ -37,9 +39,9 @@ router.get("/", authRequired, async (req, res) => {
 router.get("/:id", authRequired, async (req, res) => {
   try {
     const pool = getPool();
-    const [rows] = await pool.query("SELECT * FROM products WHERE id = ?", [req.params.id]);
-    if (!rows.length) return res.status(404).json({ message: "Product not found" });
-    return res.json(rows[0]);
+    const result = await pool.query("SELECT * FROM products WHERE id = $1", [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ message: "Product not found" });
+    return res.json(result.rows[0]);
   } catch (err) {
     return res.status(500).json({ message: "Server error", error: err.message });
   }
@@ -53,9 +55,9 @@ router.post("/", authRequired, requireRole("admin"), async (req, res) => {
 
     if (!sku || !name) return res.status(400).json({ message: "sku and name are required" });
 
-    const [result] = await pool.query(
+    const result = await pool.query(
       `INSERT INTO products (sku, name, description, unit_cost, reorder_level, on_hand, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
       [
         sku,
         name,
@@ -63,14 +65,12 @@ router.post("/", authRequired, requireRole("admin"), async (req, res) => {
         Number(unit_cost ?? 0),
         Number(reorder_level ?? 0),
         Number(on_hand ?? 0),
-        is_active === undefined ? 1 : (is_active ? 1 : 0),
+        is_active === undefined ? true : Boolean(is_active),
       ]
     );
-
-    const [rows] = await pool.query("SELECT * FROM products WHERE id = ?", [result.insertId]);
-    return res.status(201).json(rows[0]);
+    return res.status(201).json(result.rows[0]);
   } catch (err) {
-    if (String(err.message).includes("Duplicate")) {
+    if (String(err.message).includes("unique") || String(err.code) === "23505") {
       return res.status(409).json({ message: "SKU already exists" });
     }
     return res.status(500).json({ message: "Server error", error: err.message });
@@ -90,17 +90,19 @@ router.put("/:id", authRequired, requireRole("admin"), async (req, res) => {
 
     const sets = [];
     const params = [];
+    let idx = 1;
     for (const [k, v] of Object.entries(patch)) {
-      sets.push(`${k} = ?`);
+      sets.push(`${k} = $${idx++}`);
       params.push(v);
     }
     params.push(req.params.id);
 
-    const [result] = await pool.query(`UPDATE products SET ${sets.join(", ")} WHERE id = ?`, params);
-    if (result.affectedRows === 0) return res.status(404).json({ message: "Product not found" });
-
-    const [rows] = await pool.query("SELECT * FROM products WHERE id = ?", [req.params.id]);
-    return res.json(rows[0]);
+    const result = await pool.query(
+      `UPDATE products SET ${sets.join(", ")} WHERE id = $${idx} RETURNING *`,
+      params
+    );
+    if (result.rowCount === 0) return res.status(404).json({ message: "Product not found" });
+    return res.json(result.rows[0]);
   } catch (err) {
     return res.status(500).json({ message: "Server error", error: err.message });
   }
@@ -110,8 +112,11 @@ router.put("/:id", authRequired, requireRole("admin"), async (req, res) => {
 router.delete("/:id", authRequired, requireRole("admin"), async (req, res) => {
   try {
     const pool = getPool();
-    const [result] = await pool.query("UPDATE products SET is_active = 0 WHERE id = ?", [req.params.id]);
-    if (result.affectedRows === 0) return res.status(404).json({ message: "Product not found" });
+    const result = await pool.query(
+      "UPDATE products SET is_active = false WHERE id = $1",
+      [req.params.id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ message: "Product not found" });
     return res.json({ message: "Product deactivated" });
   } catch (err) {
     return res.status(500).json({ message: "Server error", error: err.message });
