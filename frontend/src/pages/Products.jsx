@@ -172,11 +172,9 @@ const Products = ({ setCurrentPage }) => {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          {isAdmin && (
-            <button className="primary-btn" onClick={() => setCurrentPage('add-product')}>
-              <Plus size={16} style={{ marginRight: 4 }} /> Add Product
-            </button>
-          )}
+          <button className="primary-btn" onClick={() => setCurrentPage('add-product')}>
+            <Plus size={16} style={{ marginRight: 4 }} /> Add Product
+          </button>
         </div>
       </div>
 
@@ -195,15 +193,13 @@ const Products = ({ setCurrentPage }) => {
         ) : products.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
             <p>No products found.</p>
-            {isAdmin && (
-              <button
-                className="primary-btn"
-                style={{ marginTop: '1rem' }}
-                onClick={() => setCurrentPage('add-product')}
-              >
-                Add the First Product
-              </button>
-            )}
+            <button
+              className="primary-btn"
+              style={{ marginTop: '1rem' }}
+              onClick={() => setCurrentPage('add-product')}
+            >
+              Add the First Product
+            </button>
           </div>
         ) : (
           <table className="products-table">
