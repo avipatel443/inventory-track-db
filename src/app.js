@@ -21,7 +21,7 @@ app.use(cors({
 app.use(express.json({ limit: "1mb" }));
 app.use(morgan("dev"));
 
-app.get("/", (req, res) => res.json({ status: "ok" }));
+app.get("/health", (req, res) => res.json({ status: "ok" }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
@@ -29,7 +29,7 @@ app.use("/api/movements", movementRoutes);
 app.use("/api/reports", reportRoutes);
 
 if (process.env.NODE_ENV === "production") {
-  const staticPath = path.join(__dirname, "../../frontend/dist");
+  const staticPath = path.join(__dirname, "../frontend/dist");
   app.use(express.static(staticPath));
 
   app.get(/^(?!\/api).*/, (req, res) => {
