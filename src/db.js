@@ -12,7 +12,7 @@ async function initDb() {
   const client = await pool.connect();
   console.log("PostgreSQL Database connected");
   try {
-    const schema = fs.readFileSync(path.join(__dirname, "../../sql/schema.sql"), "utf8");
+    const schema = fs.readFileSync(path.join(__dirname, "../sql/schema.sql"), "utf8");
     await client.query(schema);
     console.log("Schema applied");
   } finally {
