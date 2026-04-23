@@ -1,4 +1,6 @@
 const { Pool } = require("pg");
+const fs = require("fs");
+const path = require("path");
 require("dotenv").config();
 
 const pool = new Pool({
@@ -9,7 +11,13 @@ const pool = new Pool({
 async function initDb() {
   const client = await pool.connect();
   console.log("PostgreSQL Database connected");
-  client.release();
+  try {
+    const schema = fs.readFileSync(path.join(__dirname, "../../sql/schema.sql"), "utf8");
+    await client.query(schema);
+    console.log("Schema applied");
+  } finally {
+    client.release();
+  }
 }
 
 function getPool() {
