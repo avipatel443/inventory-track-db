@@ -8,9 +8,10 @@
   ],
   "scripts": {
     "dev:backend": "nodemon src/server.js",
-    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:frontend": "npm --prefix ../../frontend run dev",
+    "dev:all": "concurrently -n backend,frontend -c cyan,magenta \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev": "npm run dev:backend",
-    "build:frontend": "npm --prefix frontend install && npm --prefix frontend run build",
+    "build:frontend": "npm --prefix ../../frontend install && npm --prefix ../../frontend run build",
     "build": "npm run build:frontend",
     "start": "node src/server.js"
   },
@@ -19,6 +20,7 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "nodemon": "^3.1.11"
   },
   "dependencies": {
